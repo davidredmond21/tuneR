@@ -2,20 +2,17 @@
 # Only need to run this complete file onse to construct the datasets
 #
 #
-.libPaths(Sys.getenv('RLIBPATHS'))
-
-library(moments)
-library(testthat)
-library(ggplot2)
-library(robustbase)
-library(reshape2)
-library(tibble)
-library(dplyr)
-library(entropy)
-library(roxygen2)
-library(readr)
-library(magrittr)
-
+#.libPaths(Sys.getenv('RLIBPATHS'))
+#library(moments)
+#library(ggplot2)
+#library(robustbase)
+#library(reshape2)
+#library(tibble)
+#library(dplyr)
+#library(entropy)
+#library(roxygen2)
+#library(readr)
+#library(magrittr)
 
 # Prequisits
 # Down load the nasa datasets and extract into your home account
@@ -297,7 +294,7 @@ plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
          ggplot(., aes(x = Mahalanobis,fill=Summary, colour= Summary))+
          geom_density() +
          scale_color_viridis(discrete=TRUE) +
-         theme_light()+
+         theme_classic()+
          stat_function(fun = dnorm, colour="purple",alpha=0.9 ) +
          facet_grid( ~ Summary, scales = 'free_x') +
          ggtitle("Mahalanobis Density plot (centered) of Features with Normal density")
