@@ -1,0 +1,138 @@
+---
+title: "Tuner2 Package"
+author: "David Redmond "
+date: "`r Sys.Date()`"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Vignette Title}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+##Background and motivation
+In an industrial setting the cost of machine failure is significant. It effects the cost of machine damage due to run to failure , collateral damage, and loss of production due to scrappage.  Current estimates put the cost of reactive maintenance in the US at $2.5T/year. The problem with reactive based maintenance and preventative maintenance is that actual health of the machine is not known without interfering in the productivity, or by a monthly inspection. A condition based  monitoring solution can be used to advise of changes in machine health indicative of developing faults, and the on-set of change of state form healthy to not-healthy, and provide specifics on the remaining useful life on each machine, allowing operators and plant owners make business decisions on when to schedule specific maintenance everts.  Due to the prevalence of bearings within many systems, the prognosis of these components is essential to ensure various reliability goals are achieved. Vibration measurements are used to monitor the health of machine bearings. Traditional univariate statistical analytical techniques along with a multivariate technique to provide a more convincing indicator to machine health.Each attribute or feature can be analysed individually to determine their ability to discriminate differing fault modes. 
+The established features are [Skewness](https://en.wikipedia.org/wiki/Skewness), [Kurtosis](https://en.wikipedia.org/wiki/Kurtosis), [RMS](https://en.wikipedia.org/wiki/Root_mean_square), [Entropy](https://en.wikipedia.org/wiki/Statistical_dispersion) and [CrestFactor](https://en.wikipedia.org/wiki/Crest_factor) have positive response at high frequency response there is limited application of these techniques within the multivariate domain. For instance, skewness and kurtosis can remain stable even though the underlying data distribution changes due to possible degradation. Similarly, the signal RMS and crest factor can remain constant whilst the skewness and kurtosis of the signal changes significantly. As such, by performing analysis in the multivariate domain, we can mitigate these flaws by providing the additional context of the other features employed. As such, the [Mahalanobis distance](https://en.wikipedia.org/wiki/Mahalanobis_distance) is the preferred multivariate metric for this application.
+---The tuner2 package is used to explore these relationships.The package is used to select a dataset, and a sample of data files to be processed, and made available for analysis using various plots.
+
+##Downloading the original data
+The package is based on the Vibration data collected from a number of motors that were run to failure. This data is hosted on the [NASA](https://ti.arc.nasa.gov/tech/dash/pcoe/prognostic-data-repository/publications/#bearing) . vibration datasets are very large and this compressed rar [ file](https://ti.arc.nasa.gov/c/3/) is > 1.3G , with 3 directories, containing > 4000 datafiles
+The tuner2 package has a smaple of this datasets in it a directory _data_ where  sample of these files are avialble to try on tuner2.
+
+###Instructions
+First download the datasets from the NADA dataset repository here.Unpack the 3 datasets to a directory to the same location so that the individual dataset directory is  _data_ etc
+
+###Shortcut 
+This package has a sample of datasets in the data directory. In addition it has a larger sample of results that can be used in the _results_ directory, which will have a significant number of points for a plot. 
+
+###Load the library(tuner2)
+  and the following package should also load.
+```{r message  = FALSE, warning-FALSE}
+library(moments)
+library(ggplot2)
+library(robustbase)
+library(reshape2)
+library(tibble)
+library(dplyr)
+library(entropy)
+library(roxygen2)
+library(readr)
+library(magrittr)
+library(viridis)
+```
+
+Run each of these functions:
+
+1.  _`load_tuner`_ : takes as arguments the name of the datasets {"1st_test", "2nd_test"} as  labelled by NASA. It also takes the sample_size as the number of files in these datasets are >1000 files, with 20k rows and upto 8 columns. The function also uses predefined channel count per dataset, and combines thins into a single list out_list to be processed by the eda_tunr function, each channel represents a vibration measurement.  The output of load_tunr is a list as shown in the example below:
+```{r }
+library(tuner2)
+ans=load_tunr("1st_test",-1)
+str(ans)
+```
+
+1.  _`eda_tunr`_: computes the feature vectors rms, skew, kurtosis, crestfactor, entropy vector for each measurement, these can be accessed later by the _`plot_tunr`_ function for model fitting and timeseries plotting. 
+
+Features   | Formula
+---------------------
+RMS      $$ \frac{\sqrt{\sum{x^2}}}{n} $$
+Kurtosis $$ \frac{\sum{(x_i-mean(x))}^4}{var(x)^4}$$ 
+CrestFactor $$ \frac{abs(max(x_i)}{RMS}$$
+Skewness  $$\frac{\sum(x_i - mean(x))^3}{var(x)^3}$$
+Entropy $$ \sum{-Prob(x_i)\times log(Prob(x_i))} $$
+
+
+Calculating a multivariate vector for each feature within the context of different bearings brings another perspective to the condition of the machine. This basic Mahalanobis calculator is used and the complete list of vectors are combined into a flat file.
+Mahalanobis distance $$ ({\boldsymbol{x}_i-\boldsymbol{x}_j)}^T{\sum}^{-1}({\boldsymbol{x}_i-\boldsymbol{x}_j})$$
+The output of eda_tunr is written to a results directory considering this processing step takes quite a long time for all the files .
+```{r include= FALSE}
+out_tbl=read_rds( "C:/Users/dredmond/Downloads/Advanced_R/assign/tuner2/results/1st_test.rds")
+summary(out_tbl)
+```
+
+1.   _`plot_tunr`_: provides different graphical insights to the datasets. it takes as input the saved dataframe from eda_tunr. Each of the features can be plotted using the arg = "features": 
+```{r echo= FALSE , fig.height=6, fig.width=8, fig.align='left'}
+   df      = out_tbl$flatten
+   rms_vec = out_tbl$rms_vec
+   krt_vec = out_tbl$krt_vec
+   ent_vec = out_tbl$ent_vec
+   cst_vec = out_tbl$cst_vec
+   skw_vec = out_tbl$skw_vec
+   df %>% melt(id.vars=c("Mahalanobis","idx", "Summary"),
+                 variable.name ="bearings") %>%
+         ggplot(., aes(x=idx,y=value,colour= bearings)) + geom_line() +
+         ggtitle("All features for each bearings") +
+         facet_wrap(~ Summary ,scales='free')+
+         scale_color_viridis(discrete=TRUE) +
+         xlab("Time X 15min") +
+         ylab("Features") 
+```
+1. _Features_ = show all bearings, and all features
+
+1.  _RMS/Kurtosis/Crest/Skewness/Entropy_ show a single plot with all bearings, and model("loess" regression model fitted) the main purpose of the model fit is to show CI intervals around the actual points 
+```{r echo= FALSE ,fig.height=6, fig.width=8, fig.align='left'}
+    krt_vec %>% melt(id.vars=c("Mahalanobis","idx", "Summary"),
+                       variable.name ="bearings") %>%
+         ggplot(., aes(x=idx,y=value,colour= bearings)) + geom_line() +
+         stat_smooth(method = loess)+
+         scale_color_viridis(discrete=TRUE) +
+         theme_bw() +
+         ggtitle("Kurtosis plot with Loess modelling limits") +
+         xlab("Time X 15min") +
+        ylab("Kurtosis")
+```
+1. _`Mahalanobis_ts`_ shown the multivariate response of all the bearings for each features
+
+```{r echo= FALSE ,fig.height=6, fig.width=8, fig.align='left'}
+ df %>% melt(id.vars=c("Mahalanobis","idx", "Summary"),
+                 variable.name ="Summary") %>%
+       ggplot(., aes(x=idx,y = Mahalanobis,colour= Summary ))+
+       geom_line() +
+       scale_color_viridis(discrete=TRUE) +
+       stat_smooth(method = 'gam')+
+       xlab("Time X 15min") +
+       ylab("Mahalanobis") +
+       ggtitle("Mahalanobis timeseries plot of Features with GAM modelling")
+```
+
+1. _`Mahalanobis_iid`_ is a distribution plot which could be used for outlier identification
+```{r echo= FALSE,fig.height=6, fig.width=8, fig.align='left'} 
+  df %>% melt(id.vars=c("Mahalanobis","idx", "Summary"),
+                  variable.name ="Summary") %>% na.omit()%>%
+         ggplot(., aes(x = Mahalanobis,fill=Summary, colour= Summary))+
+         geom_density() +
+         scale_color_viridis(discrete=TRUE) +
+         theme_classic()+
+         stat_function(fun = dnorm, colour="purple",alpha=0.9 ) +
+         facet_wrap( ~ Summary, scales = 'free_x') +
+         ggtitle("Mahalanobis Density plot (centered) of Features with Normal density")
+```
+###Finally there is an app called 
+1.   _`tuner_shiny`_ : this allow an interactive way to process the data and to view different results. The user can re-generate the summary statistics with full or sample of the datasets.
+The figure sizes have been customised so that you can easily put two images side-by-side. 
+This can be run using  _tuner_shiny()_
+
+###Conclusion
+This package can be a useful tool in exploring vibratin data. There is a series of common features used to create data frames whaich can be easily manipulated into plots that show trends and insights.
+
