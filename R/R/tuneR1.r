@@ -5,6 +5,7 @@
 .libPaths(Sys.getenv('RLIBPATHS'))
 
 library(moments)
+library(testthat)
 library(ggplot2)
 library(robustbase)
 library(reshape2)
@@ -61,6 +62,20 @@ load_tunr <-function( type=c("1st_test","2nd_test"),sample_size) {  #select whic
                    dataset = arg)
    return(out_list)
 }
+#' Title Mahalanobis calculation with coarse offset
+#'
+#' @param xx this is the dataframe
+#' @param mah_offset this tries to center the mahanalobis
+#'
+#' @return single scalar value or vector
+#' @export
+#'
+#' @examples
+#' mah_vec= mah(df)
+#' rms_vec %<>% mutate("mah"=mah(rms_vec))
+mah   <-  function(xx,mah_offset=0) {
+  mahalanobis(xx,colMeans(xx),var(xx))-mah_offset }
+#
 # Read the first data file to define the number of bearings index= i
 # Read the directory list or infile to define the total number of samples index
 # Execution process
@@ -78,9 +93,10 @@ load_tunr <-function( type=c("1st_test","2nd_test"),sample_size) {  #select whic
 #' @importFrom stats "mahalanobis" "var"
 #' @importFrom utils "read.table"
 #' @importFrom readr "write_rds"
-#' @importFrom entropy "discretize" "entropy"
 #' @importFrom dplyr   "as_tibble" "mutate"
 #' @importFrom moments "skewness"  "kurtosis"
+#' @import entropy
+#' @import magrittr
 #'
 #' @examples
 #' ans=load_tunr("1st_test",-1)
@@ -96,7 +112,6 @@ eda_tunr<-function(Result) {
    options(mc.cores = parallel::detectCores())
 
    #
-   mah   <-  function(xx) {mahalanobis(xx,colMeans(xx),var(xx))-mah_offset }
    #
    dataset_count <- length(infiles)
    rms_vec  <-matrix(data=NA,nrow=sample_size,ncol=channel_count)
@@ -161,7 +176,7 @@ eda_tunr<-function(Result) {
                   cst_vec = cst_vec,
                   ent_vec = ent_vec,
                   flatten = flatten)
-   write_rds(out_tbl, file.path(results))
+   write_rds(out_tbl, paste0(file.path(results),".rds"))
 }
 #
 # generating nice plots
@@ -169,12 +184,12 @@ eda_tunr<-function(Result) {
 #' @return cool plots
 #' @export
 #'
-#' @importFrom dplyr "mutate" "select" "arrange"
+#' @import dplyr
 #' @importFrom ggplot2 "ggplot" "facet_grid" "stat_function"
 #' @importFrom reshape2 "melt"
 #' @importFrom readr "read_rds"
 #' @importFrom viridis "scale_color_viridis"
-#' @importFrom stats "loess" "dnorm"
+#' @importFrom stats "loess" "dnorm" "na.omit"
 #'
 #' @examples
 #' ans_df = eda_tunr(load_tunr("1st_test", 20 ))
@@ -185,8 +200,8 @@ eda_tunr<-function(Result) {
 #' @param dataset is the name of the dataset "1st_test" or "2nd_test"
 #' @param regen boolean default is false, only used in the case of re-generate the summary statistics and write out an large tibble
 plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
-   res_file=file.path(getwd(),'results',dataset)
-   out_tbl=read_rds(res_file)
+   res_file=paste0(file.path(getwd(),'results',dataset),".rds")
+  out_tbl=read_rds(res_file)
    if(!regen) print("reading pre-calculated results from results directory")
            else print("run re-generation of summary stats, will take some time...")
    df      = out_tbl$flatten
@@ -203,7 +218,7 @@ plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
          ggplot(., aes(x=idx,y=value,colour= bearings)) + geom_line() +
          ggtitle("All features for each bearings") +
          facet_wrap(~ Summary ,scales='free')+
-         scale_color_viridis(discrete=TRUE,option='A') +
+         scale_color_viridis(discrete=TRUE) +
          xlab("Time X 15min") +
          ylab("Features") }
    else if (x_type =="RMS") {
@@ -215,7 +230,7 @@ plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
                        variable.name ="bearings") %>%
          ggplot(., aes(x=idx,y=value,colour= bearings)) + geom_point() +
          stat_smooth(method = loess)+
-         scale_color_viridis(discrete=TRUE,option='A') +
+         scale_color_viridis(discrete=TRUE) +
          ggtitle("RMS  plot with Loess modelling limits") +
          theme_bw() +
          xlab("Time X 15min") +
@@ -225,7 +240,7 @@ plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
                        variable.name ="bearings") %>%
          ggplot(., aes(x=idx,y=value,colour= bearings)) + geom_line() +
          stat_smooth(method = loess)+
-         scale_color_viridis(discrete=TRUE,option='A') +
+         scale_color_viridis(discrete=TRUE) +
          theme_bw() +
          ggtitle("Kurtosis plot with Loess modelling limits") +
          xlab("Time X 15min") +
@@ -237,7 +252,7 @@ plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
         ggplot(., aes(x=idx,y=value,colour= bearings)) + geom_line() +
         ggtitle("Entropy plot with Loess modelling limits") +
         stat_smooth(method = loess)+
-        scale_color_viridis(discrete=TRUE,option='A') +
+        scale_color_viridis(discrete=TRUE) +
         theme_bw() +
         xlab("Time X 15min") +
         ylab("Entropy") }
@@ -248,7 +263,7 @@ plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
          ggplot(., aes(x=idx,y=value,colour= bearings)) + geom_line() +
          ggtitle("CrestFactor plot with Loess modelling limits") +
          stat_smooth(method = loess)+
-         scale_color_viridis(discrete=TRUE,option='A') +
+         scale_color_viridis(discrete=TRUE) +
          xlab("Time X 15min") +
          ylab("Crest_Factor") }
    #
@@ -266,7 +281,7 @@ plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
                  variable.name ="Summary") %>%
        ggplot(., aes(x=idx,y = Mahalanobis,colour= Summary ))+
        geom_line() +
-       scale_color_viridis(discrete=TRUE,option='A') +
+       scale_color_viridis(discrete=TRUE) +
        stat_smooth(method = 'gam')+
        xlab("Time X 15min") +
        ylab("Mahalanobis") +
@@ -281,7 +296,7 @@ plot_tunr <-function(x_type,dataset="1st_test", regen=FALSE) {
                   variable.name ="Summary") %>% na.omit()%>%
          ggplot(., aes(x = Mahalanobis,fill=Summary, colour= Summary))+
          geom_density() +
-         scale_color_viridis(discrete=TRUE,option='A') +
+         scale_color_viridis(discrete=TRUE) +
          theme_light()+
          stat_function(fun = dnorm, colour="purple",alpha=0.9 ) +
          facet_grid( ~ Summary, scales = 'free_x') +
