@@ -1,0 +1,32 @@
+Package: tuner2
+Type: Package
+Title: Analyse and plot the vibration datasets from the NASA repository 
+Version: 0.1.0
+Authors@R: person("david","redmond", email = "davidredmo531@yahoo.com", role =
+    c("aut", "cre"))
+Description: Analyses and plots the important features of motor bearing vibration data. 
+    Options are to select from 2 datasets and to plot a sample, or all of the data.   
+    The plots optiosn allow for more investigation of the selected features.
+    Down load the nasa datasets and extract into your home account.
+    A sample is available in the dataset directory
+License: GPL (>= 2)
+LazyData: TRUE
+Imports:
+    dplyr,
+    moments,
+    robustbase,
+    reshape2,
+    entropy,
+    ggplot2,
+    magrittr,
+    tibble,
+    shiny,
+    viridis,
+    stats,
+    readr,
+    testthat
+RoxygenNote: 6.0.1
+Suggests: testthat,
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr
